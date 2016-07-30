@@ -642,6 +642,230 @@ _.extend(Model.prototype, Events, {
   // Mix in each Underscore method as a proxy to `Model#attributes`.
   addUnderscoreMethods(Model, modelMethods, 'attributes');
 
+//---------------------------------Backbone Collection---------------------------------//
+//If Backbone Model tends to represent a single row of data, 
+//a Backbone Collection represents a table full of data.
+
+//Create a new 'Collection', perhaps to contain a specific type of 'model'.
+//If a 'comparator' is specified, the Colloection will maintain
+//its models in sort order, as they're added and removed.
+
+var Collection = Backbone.Collection = function(models, options){
+	options || (options = {});
+	//preinitialize
+	this.preinitialize.apply(this, arguments);
+	//model
+	if(options.model) this.model = options.model;
+	//comparator
+	if(options.comparator !== void 0) this.comparator = options.comparator;
+	//??
+	this._reset();
+	this.initialize.apply(this, arguments);
+	//reset collection without triggering reset event
+	if(models) this.reset(models. _.extend({silnet: true}, options));
+};
+
+//Deafult options for 'Collection#set'.
+var setOptions = {add: true, remove: true, merge: true},
+	addOptions = {add: true, remove: false};
+
+//splices 'insert' into 'array' at index 'at'.
+var splice = function(array, insert, at){
+	at = Math.min(Math.max(at, 0), array.length);
+	var tail = Array(array.length - at),
+		length = insert.length;
+	var i;
+	//preserve elements on tails
+	for( i = 0; i < tail.length; i++) tail[i] = array[i + at];
+	//insert
+	for (i = 0; i < length; i++) array[i + at] = insert[i];
+	//copy back tail elements
+    for (i = 0; i < tail.length; i++) array[i + length + at] = tail[i];
+};
+
+_.extend(Collection.prototype, Events, {
+
+	//Default model is just a backbone model, should be overridden
+	model: Model,
+
+	//preinitialize
+	preinitialize: function(){},
+
+	//initialize
+	initialize: function(){},
+
+	//returns an array of the model's attributes
+	toJSON: function(options){
+		return this.map(function(model){ return model.toJSON(options); });
+	},
+
+	//Proxy 'Backbone.sync' by default
+	sync: function(){
+		return Backbone.sync.apply(this, arguments);
+	},
+
+	//Add a model, or a list of models to the collection.
+	//'models' may be Backbone Models or raw Javascript objects to be
+	//converted to Models, or any combination of the tow.
+	add: function(models, options){
+		return this.set(models, _.extend({merge: false}, options, addOptions));
+	},
+
+	//remove a model, or a list of models from the set.
+	remove: function(models, options){
+		options = _.extend({}, options);
+		//check a model or models
+		var singular = !_.isArray(models);
+		models = singualr ? [models] : models.slice();//protect the original copy
+		var removed = this._removeModels(models, options);
+		//trigger event if not silent
+		if(!options.silent && removed.length){
+			options.changes = {add: [], merged: [], removed: removed};
+			//update event will tell you what has been added, merged or removed
+			this.trigger('update', this, options);
+		}
+		//return removed models
+		return singular ? removed[0] : removed;
+	},
+
+	//Update a collection. Add, merge or remove
+	//Core operation!
+	set: function(models, options){
+		if(models == null/*null or undefined*/) return;
+
+		options = _.extend({}, setOptions, options);
+		//parse model if models is not Model
+		if(options.parse && !this._isModel(models)){
+			models = this.parse(models, options) || [];
+		}
+
+		//check a model or models
+		var singular = !_.isArray(models);
+		//arraify
+		models = singular ? [models] : models.slice();//protect original copy
+
+		var at = options.at;
+		if (at != null) at = +at;//??protect original at?
+		if(at > this.length) at = this.length;
+		if(at < 0) at += this.length + 1;
+
+		var set = [],
+			toAdd = [],
+			toMeger = [],
+			toRemove = [],
+			modelMap = {};
+
+		var add = options.add,
+			merge = options.merge,
+			remove = options.remove;
+
+		var sort = false,//initial value is false
+			sortable = this.comparator && at == null && options.sort !== false,
+			sortAttr = _.isString(this.comparator) ? this.comparator : null;
+
+		//Turn bare objects into model references, and 
+		//prevent invalid modes from being added.
+		var model, i;
+		for(i = 0; i < models.length; i++){
+			model = models[i];
+
+			//check duplication. If yes, try to merge.
+			var existing = this.get(model);
+			if(existing){
+				if(merge && model !== existing){
+					var attrs = this._isModel(model) ? model.attributes : model;
+					//parse attibutes using existing parse
+					if (options.parse) attrs = existing.parse(attrs, options);
+					//merge
+					existing.set(attrs, options);
+					//push it to the 'toMerge' list
+            		toMerge.push(existing);
+            		//check whether needs to be re-sorted
+            		if (sortable && !sort) sort = existing.hasChanged(sortAttr);
+				}	
+			//If this is a new, valid model, push it to the 'toAdd' list
+			}else if(add){
+				model = models[i] = this._prepareModel(model, options);
+				//valid
+				if(model){
+					toAdd.push(model);
+					this._addReference(model, options);
+					modelMap[model.cid] = true;
+					set.push(model);
+				}
+			}
+		}
+
+		// Remove stale models.
+		if (remove) {
+		    for (i = 0; i < this.length; i++) {
+		        model = this.models[i];
+		        if (!modelMap[model.cid]) toRemove.push(model);
+		    }
+		    if (toRemove.length) this._removeModels(toRemove, options);
+		}
+
+		// See if sorting is needed, update `length` and splice in new models.
+		var orderChanged = false;
+		var replace = !sortable && add && remove;
+		if (set.length && replace) {
+			//check whether length equal or
+			//if length equal whether same index same value
+		    orderChanged = this.length !== set.length || _.some(this.models, function(m, index) {
+		        return m !== set[index];
+		    });
+		    //reset this.models
+		    this.models.length = 0;
+		    //put set array into this.models
+		    splice(this.models, set, 0);
+		    //reset this.length
+		    this.length = this.models.length;
+		} else if (toAdd.length) {
+			//if not replacable, just add and re-sort
+		    if (sortable) sort = true;
+		    splice(this.models, toAdd, at == null ? this.length : at);
+		    this.length = this.models.length;
+		}
+
+		// Silently sort the collection if appropriate.
+		if (sort) this.sort({silent: true});
+
+		// Unless silenced, it's time to fire all appropriate add/sort/update events.
+		if (!options.silent) {
+		    for (i = 0; i < toAdd.length; i++) {
+		        if (at != null) options.index = at + i;
+		        model = toAdd[i];
+		        //add event for a perticular model
+		        model.trigger('add', model, this, options);
+		    }
+		    //sort event
+		    if (sort || orderChanged) this.trigger('sort', this, options);
+		    //update event
+		    if (toAdd.length || toRemove.length || toMerge.length) {
+		        options.changes = {
+		            added: toAdd,
+		            removed: toRemove,
+		            merged: toMerge
+		        };
+		        this.trigger('update', this, options);
+		    }
+		}
+
+		// Return the added (or merged) model (or models).
+    	return singular ? models[0] : models;
+	},
+
+
+
+});
+
+
+//---------------------------------Backbone View---------------------------------//
+//Backbone View is simply a Javascript object that represents a logical chunk of UI in the DOM.
+
+
+
+
 //---------------------------------Backbone Helpers---------------------------------//
 //By default, makes a RESTful Ajax request to the model's 'url()'.
 
