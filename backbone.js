@@ -144,6 +144,20 @@
     // Iterates over the standard `event, callback` (as well as the fancy multiple
     // space-separated events `"change blur", callback` and jQuery-style event
     // maps `{event: callback}`).
+    
+    //z There are 3 kinds of events registration
+    // 1). events can be registered as an object, in which the a pair means event name and callback function name, e.g.
+    //      {
+    //          change: onChange,
+    //          click: onClick
+    //      }
+    //      
+    // 2). events can be registered as a string with eventSplitter as the splitter of the string. e.g.
+    //      'change blur', callback
+    //      
+    // 3). events can also be registered as a standard token
+    //      object.on(event, callback)
+
     var eventsApi = function(iteratee, events, name, callback, opts) {
         var i = 0,
             names;
@@ -167,6 +181,8 @@
 
     // Bind an event to a `callback` function. Passing `"all"` will bind
     // the callback to all events fired.
+    // 
+    //z This is the exposure API for users to bind an event to a callback function.
     Events.on = function(name, callback, context) {
         return internalOn(this, name, callback, context);
     };
