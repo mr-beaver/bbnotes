@@ -311,7 +311,7 @@
                 ) {
                     remaining.push(handler);
                 } else {
-                    listening = handler.listening;
+                    listening = handler.listening;//!!
                     if (listening && --listening.count === 0) {
                         delete listeners[listening.id];
                         delete listening.listeningTo[listening.objId];
