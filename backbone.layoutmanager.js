@@ -30,6 +30,7 @@
     else {
         factory.call(window, window.Backbone, window._, window.Backbone.$);
     }
+    
 }(typeof global === "object" ? global : this, function(Backbone, _, $) {
     "use strict";
 
@@ -958,6 +959,7 @@
     // Override _configure to provide extra functionality that is necessary in
     // order for the render function reference to be bound during initialize.
     Backbone.View.prototype.constructor = function(options) {
+        //z means there is no el
         var noel;
 
         // Ensure options is always an object.
