@@ -659,6 +659,7 @@ _.extend(History.prototype, Events, {
     },
 
     //real stuff starts here
+    //
     // Start the hash change handling, returning `true` if the current URL matches
     // an existing route, and `false` otherwise.
     start: function(options) {

@@ -50,6 +50,8 @@
 
     // LayoutManager is a wrapper around a `Backbone.View`.
     // Backbone.View.extend takes options (protoProps, staticProps)
+    //
+    //z extends Backbone view, since Layout Manager is an extension of Backbone view
     var LayoutManager = Backbone.View.extend({
             _render: function() {
                 // Keep the view consistent between callbacks and deferreds.
@@ -100,6 +102,7 @@
                     }
                 }
 
+                //z if not async, call callbacks directly
                 if (!manager.isAsync) {
                     manager.callback();
                 }
@@ -288,6 +291,7 @@
                 }).value();
 
                 // Simulate a parent render to remain consistent.
+                //z promise only exposes the methods needed to attach additional handlers or determine the state
                 manager.renderDeferred = newDeferred.promise();
 
                 // Once all child views have completed rendering, resolve parent deferred
@@ -441,7 +445,7 @@
                     }
 
                     // Assign to main views object and return for chainability.
-                    return root.views[selector] = view;
+                    return (root.views[selector] = view);
                 }
 
                 // Ensure this.views[selector] is an array and push this View to
@@ -483,7 +487,7 @@
                 var root = this;
                 var manager = root.__manager__;
                 var parent = manager.parent;
-                var rentManager = parent && parent.__manager__;
+                var rentManager = parent && parent.__manager__; //parent manager
                 var def = root.deferred();
 
                 // Triggered once the render has succeeded.
@@ -619,7 +623,7 @@
 
                 // Start the render.
                 // Register this request & cancel any that conflict.
-                root._registerWithRAF(actuallyRender, def);
+                root._registerWithRAF(actuallyRender, def);//RAF is requestAnimationFrame
 
                 // Put the deferred inside of the `__manager__` object, since we don't want
                 // end users accessing this directly anymore in favor of the `afterRender`
@@ -1003,6 +1007,7 @@
         useRAF: true,
 
         // Can be used to supply a different deferred implementation.
+        //z the default option is to use jQuery's deferred function to return a promise object
         deferred: function() {
             return $.Deferred();
         },
