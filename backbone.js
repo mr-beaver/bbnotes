@@ -1401,7 +1401,7 @@
     // even the surrounding frame which wraps your whole app. Defining a chunk of
     // UI as a **View** allows you to define your DOM events declaratively, without
     // having to worry about render order ... and makes it easy for the view to
-    // react to specific changes in the state of your models.
+    // react to specific changes in the state of your models.;
 
     // Creating a Backbone.View creates its initial element outside of the DOM,
     // if an existing element is not provided...
